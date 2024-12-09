@@ -12,39 +12,39 @@ dictionary :: [String]
 dictionary = ["hello", "earth", "paint", "about", "brain", "chain", "pause", "trade", "burst"]
 
 -- Function to randomly pick a word
-targetedWord :: IO String
-targetedWord = randomRIO (0, length dictionary - 1) >>= \index -> return (dictionary !! index)
+selectRandomWord :: IO String
+selectRandomWord = randomRIO (0, length dictionary - 1) >>= \index -> return (dictionary !! index)
 
--- Function to handle game logic
 playGame :: (GameStateOps s) => s -> IO GameResult
 playGame state
-    | getRemainingAttempts state == 0 =
-        putStrLn ("You failed to guess the word. The correct word was: " <> getTargetWord state)
-        >> return Lose
-    | otherwise =
-        putStrLn ("Enter your 5-letters guess (" <> show (getRemainingAttempts state) <> " attempts left):")
-        >> getLine
-        >>= \guess -> 
-            -- Handle error when user input numbers 
-            if not (all (`elem` ['a'..'z']) (map toLower guess)) then
-                putStrLn "Invalid input. Your guess contains numbers or special characters. Please enter a valid 5-letter word."
-                >> playGame state
-            -- Handle error when user did not enter exactly 5 letters
-            else if length guess /= 5 then
-                putStrLn "Invalid input. Please enter a 5-letter word."
-                >> playGame state
-            -- Check if user entered the correct word
-            else if map toLower guess == getTargetWord state then
-                return (Score <$> pure (getRemainingAttempts state)) >>= \scoreState ->
-                putStrLn ("Congratulations you got the answer! Your score is: " <> show (stateValue scoreState))
-                >> return (Win (stateValue scoreState))
-            -- Give feedback if user did not enter the correct word
-            else
-                let feedback = checkAnswer (map toLower guess) (getTargetWord state)
-                    nextState = decrementAttempts state
-                in traverse_ showFeedback feedback
-                   >> playGame nextState
+    | getRemainingAttempts state == 0 = do
+        putStrLn $ "You failed to guess the word. The correct word was: " <> getTargetWord state
+        return Lose
+    | otherwise = do
+        putStrLn $ "Enter your guess (" <> show (getRemainingAttempts state) <> " attempts left):"
+        guess <- getLine
+        handleGuess state (map toLower guess)
 
+handleGuess :: (GameStateOps s) => s -> String -> IO GameResult
+handleGuess state guess
+    | not (isValidGuess guess) = do
+        putStrLn "Invalid input. Please enter a valid 5-letter word."
+        playGame state
+    | guess == getTargetWord state = do
+        let score = calculateScore state
+        putStrLn $ "Congratulations! Your score is: " <> show score
+        return $ Win score
+    | otherwise = do
+        let feedback = checkAnswer guess (getTargetWord state)
+        putStrLn "Feedback on your guess:"
+        traverse_ showFeedback feedback
+        playGame $ decrementAttempts state
+
+isValidGuess :: String -> Bool
+isValidGuess guess = all (`elem` ['a'..'z']) guess && length guess == 5
+
+calculateScore :: (GameStateOps s) => s -> Score
+calculateScore state = Score $ getRemainingAttempts state
 
 -- Function to check validity of user input and handle errors
 getValidInput :: (Int -> Bool) -> IO Int

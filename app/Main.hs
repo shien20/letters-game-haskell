@@ -36,17 +36,21 @@ processUserInput choice =
         5 -> putStrLn "Thank you for playing! Goodbye."
         _ -> putStrLn "Invalid choice. Please try again." >> getUserChoice >>= processUserInput
 
--- Function to start the game
 startGame :: IO ()
 startGame = do
-    target <- targetedWord -- generate and store the random word
-    let initialState = GameState 6 target () -- initialize the number of attempts and random word
-    result <- playGame initialState -- start the game and store the game result into "result"
-    logGameResult "game_records.txt" target result -- write the result into the text file
+    target <- selectRandomWord
+    let initialState = GameState 6 target ()
+    result <- playGame initialState
+    logGameResult "game_records.txt" target result
     putStrLn "-----------------------------------------------------------------------"
-    putStrLn "Do you want to play again? \npress [1] to play again OR press [any key] Exit to Menu" -- prompt user if they want to play again
+    askReplay
+
+askReplay :: IO ()
+askReplay = do
+    putStrLn "Do you want to play again? \n[1] Yes | [any key] Exit to Menu"
     replay <- getLine
-    if replay == "1" then startGame else main -- if user choose [1], loop the startGame again, else bring back to main menu
+    if replay == "1" then startGame else main 
+
 
 -- Function to view history
 viewHistory :: IO ()
