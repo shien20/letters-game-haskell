@@ -1,14 +1,9 @@
-module Main where
-
-import System.Random
-
-newtype Score = Score Int deriving (Show, Eq, Ord)
--- Custom type for results
-data GameResult = Lose | Win Score deriving (Show, Eq)
--- Feedback data type to label whether a letter is correct, misplaced or incorrect
-data Feedback = Correct | Misplaced | Incorrect deriving (Show, Eq)
-
 -- Define a GameState typeclass
+import System.Random
+import Data.Char (toLower)
+import Data.Foldable (traverse_)
+import System.Console.ANSI
+
 class GameStateOps s where
     decrementAttempts :: s -> s             -- Reduce the remaining attempts
     setTargetWord     :: String -> s -> s   -- Set the target word
@@ -27,43 +22,87 @@ instance GameStateOps (GameState a) where
 
     getTargetWord (GameState _ target _) = target
 
+
+-- | Newtype for Score
+newtype Score = Score Int deriving (Show, Eq, Ord)
+
+instance Semigroup Score where
+    (Score a) <> (Score b) = Score (a + b)
+
+instance Monoid Score where
+    mempty = Score 0
+    mappend = (<>)
+
+
+-- | GameState encapsulates the game data
+data GameState a = GameState
+    { remainingAttempts :: Int
+    , targetWord :: String
+    , stateValue :: a
+    } deriving Show
+
+-- Functor, Applicative, and Monad instances for GameState
+instance Functor GameState where
+    fmap f (GameState attempts target val) = GameState attempts target (f val)
+
+instance Applicative GameState where
+    pure x = GameState 6 "" x
+    (GameState _ _ f) <*> (GameState attempts target val) =
+        GameState attempts target (f val)
+
+instance Monad GameState where
+    return = pure
+    (GameState attempts target val) >>= f =
+        let (GameState newAttempts newTarget newVal) = f val
+         in GameState (min attempts newAttempts) (if null target then newTarget else target) newVal
+
+-- Custom type for results
+data GameResult = Lose | Win Score deriving (Show, Eq)
+-- Feedback data type to label whether a letter is correct, misplaced or incorrect
+data Feedback = Correct | Misplaced | Incorrect deriving (Show, Eq)
+
+-- ---------------------------------------------- MENU -------------------------------------------------------------
+-- | Menu
 getUserChoice :: IO Int
-getUserChoice = do
-    putStrLn "\n--- LETTERS GAME ---"
-    putStrLn "[1] Start Game"
-    putStrLn "[2] View History"
-    putStrLn "[3] View Instructions"
-    putStrLn "[4] Generate Report"
-    putStrLn "[5] Exit"
-    putStr "Enter your choice: "
+getUserChoice =
+    putStrLn "\n--- LETTERS GAME ---" >>
+    putStrLn "[1] Start Game" >>
+    putStrLn "[2] View History" >>
+    putStrLn "[3] View Instructions" >>
+    putStrLn "[4] Generate Report" >>
+    putStrLn "[5] Exit" >>
     getValidInput "Enter your choice: " (\n -> n >= 1 && n <= 5)
 
+
 getValidInput :: String -> (Int -> Bool) -> IO Int
-getValidInput prompt isValid = do
-    putStr prompt
-    input <- getLine
-    case reads input :: [(Int, String)] of
-        [(n, "")]
-            | isValid n -> return n
-            | otherwise -> retry
-        _ -> retry
+getValidInput prompt isValid =
+    putStr prompt >>
+    getLine >>= \input ->
+        case reads input :: [(Int, String)] of
+            [(n, "")]
+                | isValid n -> return n
+                | otherwise -> retry
+            _ -> retry
   where
-    retry = do
-        putStrLn "Invalid input. Please try again."
-        getValidInput prompt isValid
+    retry = putStrLn "Invalid input. Please try again." >> getValidInput prompt isValid
+
 
 
 processUserInput :: Int -> IO ()
-processUserInput choice = case choice of
-    1 -> putStrLn "start game"
-    2 -> putStrLn "view history"
-    3 -> putStrLn "view instructions"
-    4 -> putStrLn "generate report" 
-    5 -> putStrLn "Thank you for playing! Goodbye."
-    _ -> do
-        putStrLn "Invalid choice. Please try again."
-        newChoice <- getUserChoice
-        processUserInput newChoice
+processUserInput choice =
+    putStrLn "-----------------------------------------------------------------------" >>
+    case choice of
+        1 -> startGame
+        2 -> viewHistory
+        3 -> viewInstructions
+        4 -> generateReport 
+        5 -> putStrLn "Thank you for playing! Goodbye."
+        _ -> putStrLn "Invalid choice. Please try again." >> getUserChoice >>= processUserInput
+
+-- ---------------------------------------------- MENU -------------------------------------------------------------
+
+
+-- ---------------------------------------------- GAME -------------------------------------------------------------
 
 
 -- | Dictionary
@@ -86,6 +125,13 @@ startGame = do
     putStrLn "Do you want to play again? \npress [1] to play again OR press [any key] Exit to Menu"
     replay <- getLine
     if replay == "1" then startGame else main 
+
+logGameResult :: FilePath -> String -> GameResult -> IO ()
+logGameResult filePath word result =
+    let record = case result of
+            Win (Score s) -> "Word: " ++ word ++ " | Result: Win | Score: " ++ show s
+            Lose -> "Word: " ++ word ++ " | Result: Lose | Score: 0"
+    in appendFile filePath (record ++ "\n")
 
 playGame :: (GameStateOps s) => s -> IO GameResult
 playGame state
@@ -114,6 +160,8 @@ playGame state
 
 
 
+
+
 -- Function to label which character is correct, misplaced, or incorrect
 labelAnswer :: Char -> String -> Char -> Feedback
 labelAnswer user target comp
@@ -128,13 +176,31 @@ checkAnswer guess target =
         misplacedPass = fmap (\(g, feedback) -> if feedback == Incorrect && g `elem` target then (g, Misplaced) else (g, feedback)) correctPass
     in misplacedPass
 
--- Function to display the feedback in a readable format
-showFeedback :: (Char, Feedback) -> String
-showFeedback (char, Correct) = char : " is Correct"
-showFeedback (char, Misplaced) = char : " is Misplaced"
-showFeedback (char, Incorrect) = char : " is Incorrect"
+
+-- Function to display the feedback in a readable format with colors
+showFeedback :: (Char, Feedback) -> IO ()
+showFeedback (char, Correct) = do
+    -- Set the color to green for Correct feedback
+    setSGR [SetColor Foreground Vivid Green]
+    putStrLn (char : " is Correct")
+    -- Reset to default colors
+    setSGR [Reset]
+
+showFeedback (char, Misplaced) = do
+    -- Set the color to yellow for Misplaced feedback
+    setSGR [SetColor Foreground Vivid Yellow]
+    putStrLn (char : " is Misplaced")
+    -- Reset to default colors
+    setSGR [Reset]
+
+showFeedback (char, Incorrect) = do
+    -- Set the color to red for Incorrect feedback
+    setSGR [SetColor Foreground Vivid Red]
+    putStrLn (char : " is Incorrect")
+    -- Reset to default colors
+    setSGR [Reset]
+
+-- ---------------------------------------------- GAME -------------------------------------------------------------
 
 main :: IO ()
-main = do 
-    choice <- getUserChoice
-    processUserInput choice
+main = getUserChoice >>= processUserInput
