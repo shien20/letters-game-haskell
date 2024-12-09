@@ -3,6 +3,7 @@ import System.Random
 import Data.Char (toLower)
 import Data.Foldable (traverse_)
 import System.Console.ANSI
+import System.Directory (doesFileExist)
 
 class GameStateOps s where
     decrementAttempts :: s -> s             -- Reduce the remaining attempts
@@ -201,6 +202,171 @@ showFeedback (char, Incorrect) = do
     setSGR [Reset]
 
 -- ---------------------------------------------- GAME -------------------------------------------------------------
+
+-- ---------------------------------------------- INSTRUCTIONS -------------------------------------------------------------
+-- | View Instructions
+viewInstructions :: IO ()
+viewInstructions =
+    putStrLn "HOW TO PLAY THE LETTERS GAME" >>
+    putStrLn "1. Guess the 5-letter word in 6 attempts." >>
+    putStrLn "2. Feedback is provided for each letter." >>
+    putStrLn "3. Score decreases with more attempts.\n" >>
+    putStrLn "Which operation would you like to perform: " >>
+    putStrLn "[1] Start Game [2] Exit to Menu" >>
+    getValidInput "Enter your choice: " (\n -> n >= 1 && n <= 2) >>= \choice ->
+        case choice of
+            1 -> startGame
+            2 -> do 
+                choice <- getUserChoice
+                processUserInput choice 
+
+
+-- ---------------------------------------------- INSTRUCTIONS -------------------------------------------------------------
+
+
+-- ---------------------------------------------- HISTORY -------------------------------------------------------------
+
+-- View History
+viewHistory :: IO ()
+viewHistory =
+    readHistory "game_records.txt"
+    >>= \records ->
+        if null records
+            then putStrLn "No game records found." >> main 
+            else putStrLn "\nYOUR GAME HSITORY:"
+                 >> mapM_ (putStrLn . formatRecord) (zip [1..] records)
+                 >> putStrLn "\nWhich operation would you like to perform\n[1] Delete Record [2] Exit to Menu"
+                 >> getValidInput "Enter your choice: " (\n -> n >= 1 && n <= 2)
+                 >>= \input ->
+                    putStrLn "-----------------------------------------------------------------------\n" >>
+                    case input of
+                        1 -> deleteRecords
+                        2 -> main
+
+deleteRecords :: IO ()
+deleteRecords =
+    readHistory "game_records.txt"
+    >>= \records ->
+        if null records
+            then putStrLn "No game records found to delete." >> main 
+            else do
+                putStrLn "DELETING YOUR GAME HISTORY\n"
+                traverse_ (putStrLn . formatRecord) (zip [1..] records)
+                putStrLn "Enter the record number to delete or 0 to cancel:"
+                getLine >>= \input ->
+                    case validateDeletion input records of
+                        Left errMsg -> putStrLn errMsg >> viewHistory
+                        Right updatedRecords -> writeFile "game_records.txt" (unlines updatedRecords)
+                            >> putStrLn "Record deleted successfully.\n-----------------------------------------------------------------------\nYour record has been UPDATED"
+                            >> viewHistory
+
+validateDeletion :: String -> [String] -> Either String [String]
+validateDeletion input records =
+    case reads input :: [(Int, String)] of
+        [(n, "")]
+            | n == 0 -> Left "No records deleted.\n-----------------------------------------------------------------------"
+            | n > 0 && n <= length records -> Right $ deleteRecord n records
+            | otherwise -> Left "Invalid record number. Please try again."
+        _ -> Left "Invalid input. Please enter a valid record number."
+
+
+
+
+
+
+
+-- Helper to format a record with its index
+formatRecord :: (Int, String) -> String
+formatRecord (i, record) = show i ++ ". " ++ record
+
+-- Helper to delete a record by its index (1-based)
+deleteRecord :: Int -> [String] -> [String]
+deleteRecord n = foldr (\(i, line) acc -> if i == n then acc else line : acc) [] . zip [1..]
+
+-- Read History function to read game records (as you already have)
+readHistory :: FilePath -> IO [String]
+readHistory filePath =
+    doesFileExist filePath >>= \exists ->
+        if exists
+            then lines <$> readFile filePath
+            else return []
+
+
+-- ---------------------------------------------- HISTORY -------------------------------------------------------------
+
+-- ---------------------------------------------- REPORT -------------------------------------------------------------
+
+generateReport :: IO ()
+generateReport =
+    readHistory "game_records.txt" >>= \records ->
+        let totalGames = calculateTotalGames records
+            wins = calculateWins records
+            losses = calculateLosses totalGames wins
+            bestScore = (scoreValue <$> calculateBestScore records)  -- Extract numerical value
+            totalScore = calculateTotalScore records
+            averageScore = calculateAverageScore (getSum totalScore) totalGames
+            insights = generateInsights totalGames averageScore
+        in putStrLn "YOUR GAME REPORT: \n-----------------------------------------------------------------------"
+           >> putStrLn ("Total Games: " <> show totalGames)
+           >> putStrLn ("Wins: " <> show wins <> ", Losses: " <> show losses)
+           >> putStrLn ("Best Score: " <> maybe "No scores yet." show bestScore)
+           >> printf "Average Score: %.2f\n" averageScore  -- Directly use printf
+           >> putStrLn insights
+           >> putStrLn "-----------------------------------------------------------------------"
+
+calculateTotalGames :: [String] -> Int
+calculateTotalGames = length
+
+
+calculateWins :: [String] -> Int
+calculateWins = length . filter ("Win" `isInfixOf`)
+
+calculateLosses :: Int -> Int -> Int
+calculateLosses totalGames wins = totalGames - wins
+
+calculateTotalScore :: [String] -> Sum Int
+calculateTotalScore = foldMap (Sum . scoreValue) . mapMaybe parseScore
+
+calculateBestScore :: [String] -> Maybe Score
+calculateBestScore = foldr (maxScore . parseScore) Nothing
+  where
+    maxScore :: Maybe Score -> Maybe Score -> Maybe Score
+    maxScore Nothing y = y
+    maxScore x Nothing = x
+    maxScore (Just a) (Just b) = Just (max a b)
+
+calculateAverageScore :: Int -> Int -> Double
+calculateAverageScore totalScore totalGames =
+    if totalGames > 0
+        then fromIntegral totalScore / fromIntegral totalGames
+        else 0
+
+generateInsights :: Int -> Double -> String
+generateInsights totalGames averageScore =
+    "You scored an average of " <> printf "%.2f" averageScore <>
+    " points from a total of " <> show totalGames <> " games."
+
+
+
+-- Helper function to get the integer value from Score
+scoreValue :: Score -> Int
+scoreValue (Score s) = s
+
+parseScore :: String -> Maybe Score
+parseScore record
+    | "Win" `isInfixOf` record = -- Backticks added here
+        let scoreStr = last (words record)
+         in Score <$> readMaybe scoreStr
+    | otherwise = Nothing
+
+
+readMaybe :: Read a => String -> Maybe a
+readMaybe s = case reads s of
+    [(val, "")] -> Just val
+    _           -> Nothing
+
+
+-- ---------------------------------------------- REPORT -------------------------------------------------------------
 
 main :: IO ()
 main = getUserChoice >>= processUserInput
