@@ -1,74 +1,18 @@
--- Define a GameState typeclass
-import System.Random
-import Data.Char (toLower)
-import Data.List (isInfixOf)
-import System.Directory (doesFileExist)
-import Data.Maybe (mapMaybe)
+module Main where 
+
 import Data.Semigroup (Sum(..))
 import Data.Foldable (traverse_)
 import Text.Printf (printf)
 import System.Console.ANSI
+import Control.Monad (unless)
+
+import Game 
+import Type 
+import History 
+import Report
 
 
-class GameStateOps s where
-    decrementAttempts :: s -> s             -- Reduce the remaining attempts
-    setTargetWord     :: String -> s -> s   -- Set the target word
-    getRemainingAttempts :: s -> Int        -- Get the number of remaining attempts
-    getTargetWord     :: s -> String        -- Get the target word
-
--- Implement GameStateOps for the GameState data type
-instance GameStateOps (GameState a) where
-    decrementAttempts (GameState attempts target val) =
-        GameState (attempts - 1) target val
-
-    setTargetWord word (GameState attempts _ val) =
-        GameState attempts word val
-
-    getRemainingAttempts (GameState attempts _ _) = attempts
-
-    getTargetWord (GameState _ target _) = target
-
-
--- | Newtype for Score
-newtype Score = Score Int deriving (Show, Eq, Ord)
-
-instance Semigroup Score where
-    (Score a) <> (Score b) = Score (a + b)
-
-instance Monoid Score where
-    mempty = Score 0
-    mappend = (<>)
-
-
--- | GameState encapsulates the game data
-data GameState a = GameState
-    { remainingAttempts :: Int
-    , targetWord :: String
-    , stateValue :: a
-    } deriving Show
-
--- Functor, Applicative, and Monad instances for GameState
-instance Functor GameState where
-    fmap f (GameState attempts target val) = GameState attempts target (f val)
-
-instance Applicative GameState where
-    pure x = GameState 6 "" x
-    (GameState _ _ f) <*> (GameState attempts target val) =
-        GameState attempts target (f val)
-
-instance Monad GameState where
-    return = pure
-    (GameState attempts target val) >>= f =
-        let (GameState newAttempts newTarget newVal) = f val
-         in GameState (min attempts newAttempts) (if null target then newTarget else target) newVal
-
--- Custom type for results
-data GameResult = Lose | Win Score deriving (Show, Eq)
--- Feedback data type to label whether a letter is correct, misplaced or incorrect
-data Feedback = Correct | Misplaced | Incorrect deriving (Show, Eq)
-
--- ---------------------------------------------- MENU -------------------------------------------------------------
--- | Menu
+-- Function to prompt for user input at the start of the game
 getUserChoice :: IO Int
 getUserChoice =
     putStrLn "\n--- LETTERS GAME ---" >>
@@ -77,23 +21,10 @@ getUserChoice =
     putStrLn "[3] View Instructions" >>
     putStrLn "[4] Generate Report" >>
     putStrLn "[5] Exit" >>
-    getValidInput "Enter your choice: " (\n -> n >= 1 && n <= 5)
+    putStrLn "Enter Your Choice: " >>
+    getValidInput (\n -> n >= 1 && n <= 5) -- get and check user input validity 
 
-
-getValidInput :: String -> (Int -> Bool) -> IO Int
-getValidInput prompt isValid =
-    putStr prompt >>
-    getLine >>= \input ->
-        case reads input :: [(Int, String)] of
-            [(n, "")]
-                | isValid n -> return n
-                | otherwise -> retry
-            _ -> retry
-  where
-    retry = putStrLn "Invalid input. Please try again." >> getValidInput prompt isValid
-
-
-
+-- Process user input 
 processUserInput :: Int -> IO ()
 processUserInput choice =
     putStrLn "-----------------------------------------------------------------------" >>
@@ -101,277 +32,116 @@ processUserInput choice =
         1 -> startGame
         2 -> viewHistory
         3 -> viewInstructions
-        4 -> generateReport 
+        4 -> generateReport >> main
         5 -> putStrLn "Thank you for playing! Goodbye."
         _ -> putStrLn "Invalid choice. Please try again." >> getUserChoice >>= processUserInput
 
--- ---------------------------------------------- MENU -------------------------------------------------------------
-
-
--- ---------------------------------------------- GAME -------------------------------------------------------------
-
-
--- | Dictionary
-dictionary :: [String]
-dictionary = ["hello", "earth", "paint", "about", "brain", "chain", "pause", "trade", "burst"]
-
-targetedWord :: IO String
-targetedWord = randomRIO (0, length dictionary - 1) >>= \index -> return (dictionary !! index)
-
-
-
--- | Game Logic with Monad
+-- Function to start the game
 startGame :: IO ()
 startGame = do
-    target <- targetedWord
-    let initialState = GameState 6 target ()
-    result <- playGame initialState
-    logGameResult "game_records.txt" target result
+    target <- targetedWord -- generate and store the random word
+    let initialState = GameState 6 target () -- initialize the number of attempts and random word
+    result <- playGame initialState -- start the game and store the game result into "result"
+    logGameResult "game_records.txt" target result -- write the result into the text file
     putStrLn "-----------------------------------------------------------------------"
-    putStrLn "Do you want to play again? \npress [1] to play again OR press [any key] Exit to Menu"
+    putStrLn "Do you want to play again? \npress [1] to play again OR press [any key] Exit to Menu" -- prompt user if they want to play again
     replay <- getLine
-    if replay == "1" then startGame else main 
+    if replay == "1" then startGame else main -- if user choose [1], loop the startGame again, else bring back to main menu
 
-logGameResult :: FilePath -> String -> GameResult -> IO ()
-logGameResult filePath word result =
-    let record = case result of
-            Win (Score s) -> "Word: " ++ word ++ " | Result: Win | Score: " ++ show s
-            Lose -> "Word: " ++ word ++ " | Result: Lose | Score: 0"
-    in appendFile filePath (record ++ "\n")
-
-playGame :: (GameStateOps s) => s -> IO GameResult
-playGame state
-    | getRemainingAttempts state == 0 =
-        putStrLn ("You failed to guess the word. The correct word was: " <> getTargetWord state)
-        >> return Lose
-    | otherwise =
-        putStrLn ("Enter your guess (" <> show (getRemainingAttempts state) <> " attempts left):")
-        >> getLine
-        >>= \guess -> 
-            if not (all (`elem` ['a'..'z']) (map toLower guess)) then
-                putStrLn "Invalid input. Your guess contains numbers or special characters. Please enter a valid 5-letter word."
-                >> playGame state
-            else if length guess /= 5 then
-                putStrLn "Invalid input. Please enter a 5-letter word."
-                >> playGame state
-            else if map toLower guess == getTargetWord state then
-                let scoreState = (Score <$> pure (getRemainingAttempts state))
-                in putStrLn ("Congratulations you got the answer! Your score is: " <> show (stateValue scoreState))
-                >> return (Win (stateValue scoreState))
-            else
-                let feedback = checkAnswer (map toLower guess) (getTargetWord state) in
-                putStrLn "Feedback on your guess:"
-                >> traverse_ showFeedback feedback
-                >> playGame (decrementAttempts state)
-
-
-
-
-
--- Function to label which character is correct, misplaced, or incorrect
-labelAnswer :: Char -> String -> Char -> Feedback
-labelAnswer user target comp
-  | user == comp = Correct         -- Correct letter in the correct position
-  | user `elem` target = Misplaced  -- Correct letter but wrong position
-  | otherwise = Incorrect          -- Incorrect letter
-
--- Function to check the answer for the entire guess
-checkAnswer :: String -> String -> [(Char, Feedback)]
-checkAnswer guess target =
-    let correctPass = zipWith (\g t -> if g == t then (g, Correct) else (g, Incorrect)) guess target
-        misplacedPass = fmap (\(g, feedback) -> if feedback == Incorrect && g `elem` target then (g, Misplaced) else (g, feedback)) correctPass
-    in misplacedPass
-
-
--- Function to display the feedback in a readable format with colors
-showFeedback :: (Char, Feedback) -> IO ()
-showFeedback (char, Correct) = do
-    -- Set the color to green for Correct feedback
-    setSGR [SetColor Foreground Vivid Green]
-    putStrLn (char : " is Correct")
-    -- Reset to default colors
-    setSGR [Reset]
-
-showFeedback (char, Misplaced) = do
-    -- Set the color to yellow for Misplaced feedback
-    setSGR [SetColor Foreground Vivid Yellow]
-    putStrLn (char : " is Misplaced")
-    -- Reset to default colors
-    setSGR [Reset]
-
-showFeedback (char, Incorrect) = do
-    -- Set the color to red for Incorrect feedback
-    setSGR [SetColor Foreground Vivid Red]
-    putStrLn (char : " is Incorrect")
-    -- Reset to default colors
-    setSGR [Reset]
-
--- ---------------------------------------------- GAME -------------------------------------------------------------
-
--- ---------------------------------------------- INSTRUCTIONS -------------------------------------------------------------
--- | View Instructions
-viewInstructions :: IO ()
-viewInstructions =
-    putStrLn "HOW TO PLAY THE LETTERS GAME" >>
-    putStrLn "1. Guess the 5-letter word in 6 attempts." >>
-    putStrLn "2. Feedback is provided for each letter." >>
-    putStrLn "3. Score decreases with more attempts.\n" >>
-    putStrLn "Which operation would you like to perform: " >>
-    putStrLn "[1] Start Game [2] Exit to Menu" >>
-    getValidInput "Enter your choice: " (\n -> n >= 1 && n <= 2) >>= \choice ->
-        case choice of
-            1 -> startGame
-            2 -> do 
-                choice <- getUserChoice
-                processUserInput choice 
-
-
--- ---------------------------------------------- INSTRUCTIONS -------------------------------------------------------------
-
-
--- ---------------------------------------------- HISTORY -------------------------------------------------------------
-
--- View History
+-- Function to view history
 viewHistory :: IO ()
-viewHistory =
-    readHistory "game_records.txt"
-    >>= \records ->
-        if null records
-            then putStrLn "No game records found." >> main 
-            else putStrLn "\nYOUR GAME HSITORY:"
-                 >> mapM_ (putStrLn . formatRecord) (zip [1..] records)
-                 >> putStrLn "\nWhich operation would you like to perform\n[1] Delete Record [2] Exit to Menu"
-                 >> getValidInput "Enter your choice: " (\n -> n >= 1 && n <= 2)
-                 >>= \input ->
-                    putStrLn "-----------------------------------------------------------------------\n" >>
-                    case input of
-                        1 -> deleteRecords
-                        2 -> main
+viewHistory = 
+    processHistory "game_records.txt" main >>= \records ->
+        unless (null records) $
+            setSGR [SetConsoleIntensity BoldIntensity] >>
+            putStrLn "\nYOUR GAME HISTORY:" >>
+            setSGR [Reset] >>
+            mapM_ (putStrLn . formatRecord) (zip [1 ..] records) >>
+            putStrLn "\nWhich operation would you like to perform\n[1] Delete Record [2] Exit to Menu\nEnter your choice: " >>
+            getValidInput (\n -> n >= 1 && n <= 2) >>= \input ->
+                putStrLn "-----------------------------------------------------------------------\n" >>
+                case input of
+                    1 -> deleteRecords
+                    2 -> main
 
+-- Function to delete records
 deleteRecords :: IO ()
 deleteRecords =
-    readHistory "game_records.txt"
-    >>= \records ->
-        if null records
-            then putStrLn "No game records found to delete." >> main 
-            else do
-                putStrLn "DELETING YOUR GAME HISTORY\n"
-                traverse_ (putStrLn . formatRecord) (zip [1..] records)
-                putStrLn "Enter the record number to delete or 0 to cancel:"
-                getLine >>= \input ->
-                    case validateDeletion input records of
-                        Left errMsg -> putStrLn errMsg >> viewHistory
-                        Right updatedRecords -> writeFile "game_records.txt" (unlines updatedRecords)
-                            >> putStrLn "Record deleted successfully.\n-----------------------------------------------------------------------\nYour record has been UPDATED"
-                            >> viewHistory
+    processHistory "game_records.txt" main >>= \records -> -- check if the file is empty
+        unless (null records) ( -- if the file is not empty then perform the following
+            setSGR [SetConsoleIntensity BoldIntensity] >>
+            putStrLn "DELETING YOUR GAME HISTORY\n" >>
+            setSGR [Reset] >>
+            traverse_ (putStrLn . formatRecord) (zip [1 ..] records) >> -- format and display the records details
+            putStrLn "Enter the record number to delete or 0 to cancel:" >> -- get the index number user wants to delete
+            getLine >>= \input ->
+            case validateDeletion input records of -- check user input index exist in the file
+                Left errMsg -> putStrLn errMsg >> viewHistory -- if does not exist, display error message and prompt for [1] Delete Records [2] Exit to menu
+                Right updatedRecords -> -- if exist, delete the line and display the updated record
+                    writeFile "game_records.txt" (unlines updatedRecords) >>
+                    putStrLn "Record deleted successfully.\n-----------------------------------------------------------------------\nYour record has been UPDATED" >>
+                    viewHistory
+        )
 
-validateDeletion :: String -> [String] -> Either String [String]
-validateDeletion input records =
-    case reads input :: [(Int, String)] of
-        [(n, "")]
-            | n == 0 -> Left "No records deleted.\n-----------------------------------------------------------------------"
-            | n > 0 && n <= length records -> Right $ deleteRecord n records
-            | otherwise -> Left "Invalid record number. Please try again."
-        _ -> Left "Invalid input. Please enter a valid record number."
+-- Function to view instructions 
+viewInstructions :: IO ()
+viewInstructions =
+    setSGR [SetConsoleIntensity BoldIntensity] >> -- set to bold text 
+    putStrLn "\nHOW TO PLAY THE LETTERS GAME" >>
+    setSGR [Reset] >>
+    
+    putStrLn "1. You will be given a random 5-letter word to guess." >>
+    putStrLn "2. You have 6 attempts to guess the word correctly." >>
+    putStrLn "3. After each guess, you'll receive feedback:" >>
+    
+    setSGR [SetColor Foreground Vivid Green] >> -- set to green colour
+    putStrLn "  - Correct: The letter is in the correct position." >>
+    
+    setSGR [SetColor Foreground Vivid Yellow] >> -- set to yellow colour
+    putStrLn "  - Misplaced: The letter is in the word but in the wrong position." >>
+    
+    setSGR [SetColor Foreground Vivid Red] >> -- set to red colour
+    putStrLn "  - Incorrect: The letter does not exist in the word." >>
+    setSGR [Reset] >>
+    
+    putStrLn "4. Your score is based on how quickly you guess the word:" >>
+    putStrLn "  - 6 points for guessing correctly on the first attempt." >>
+    putStrLn "  - 5 points for the second attempt" >>
+    putStrLn "  - 4 points for the third, and so on." >>
+    putStrLn "  - If you guess the word on the 6th attempt, you score 1 point." >>
+    putStrLn "  - If you fail to guess the word within 6 attempts, you will earn 0 points." >>
+    
+    putStrLn "\nReady to Play?" >>
+    putStrLn "Choose the number of the option you want from the menu to begin playing." >>
+    putStrLn "[1] Start Game [2] Exit to Menu" >>
+    putStrLn "Enter your choice: " >>
+    
+    getValidInput (\n -> n >= 1 && n <= 2) >>= \choice -> -- check for user's input validity 
+    case choice of
+        1 -> startGame
+        2 -> main
 
-
-
-
-
-
-
--- Helper to format a record with its index
-formatRecord :: (Int, String) -> String
-formatRecord (i, record) = show i ++ ". " ++ record
-
--- Helper to delete a record by its index (1-based)
-deleteRecord :: Int -> [String] -> [String]
-deleteRecord n = foldr (\(i, line) acc -> if i == n then acc else line : acc) [] . zip [1..]
-
--- Read History function to read game records (as you already have)
-readHistory :: FilePath -> IO [String]
-readHistory filePath =
-    doesFileExist filePath >>= \exists ->
-        if exists
-            then lines <$> readFile filePath
-            else return []
-
-
--- ---------------------------------------------- HISTORY -------------------------------------------------------------
-
--- ---------------------------------------------- REPORT -------------------------------------------------------------
-
+-- Function to generate report
 generateReport :: IO ()
 generateReport =
     readHistory "game_records.txt" >>= \records ->
-        let totalGames = calculateTotalGames records
-            wins = calculateWins records
-            losses = calculateLosses totalGames wins
-            bestScore = (scoreValue <$> calculateBestScore records)  -- Extract numerical value
-            totalScore = calculateTotalScore records
-            averageScore = calculateAverageScore (getSum totalScore) totalGames
-            insights = generateInsights totalGames averageScore
-        in putStrLn "YOUR GAME REPORT: \n-----------------------------------------------------------------------"
+        let totalGames = calculateTotalGames records -- calculate total number of games user played
+            wins = calculateWins records -- calculate total number of wins
+            losses = calculateLosses totalGames wins -- totalGames - totalWins: calculate total number of lose
+            bestScore = (scoreValue <$> calculateBestScore records)  -- find the highest Win score
+            totalScore = calculateTotalScore records -- calculate total score
+            averageScore = calculateAverageScore (getSum totalScore) totalGames -- totalScore / totalGames: calculate the averageScore per game
+            insights = generateInsights totalGames averageScore -- display the information calculated
+
+        -- Format and display the calculations 
+        in putStrLn "\nYOUR GAME REPORT: \n-----------------------------------------------------------------------"
            >> putStrLn ("Total Games: " <> show totalGames)
            >> putStrLn ("Wins: " <> show wins <> ", Losses: " <> show losses)
            >> putStrLn ("Best Score: " <> maybe "No scores yet." show bestScore)
-           >> printf "Average Score: %.2f\n" averageScore  -- Directly use printf
+           >> printf "Average Score: %.2f\n" averageScore  -- printf to display in 2 decimal places 
            >> putStrLn insights
            >> putStrLn "-----------------------------------------------------------------------"
 
-calculateTotalGames :: [String] -> Int
-calculateTotalGames = length
-
-
-calculateWins :: [String] -> Int
-calculateWins = length . filter ("Win" `isInfixOf`)
-
-calculateLosses :: Int -> Int -> Int
-calculateLosses totalGames wins = totalGames - wins
-
-calculateTotalScore :: [String] -> Sum Int
-calculateTotalScore = foldMap (Sum . scoreValue) . mapMaybe parseScore
-
-calculateBestScore :: [String] -> Maybe Score
-calculateBestScore = foldr (maxScore . parseScore) Nothing
-  where
-    maxScore :: Maybe Score -> Maybe Score -> Maybe Score
-    maxScore Nothing y = y
-    maxScore x Nothing = x
-    maxScore (Just a) (Just b) = Just (max a b)
-
-calculateAverageScore :: Int -> Int -> Double
-calculateAverageScore totalScore totalGames =
-    if totalGames > 0
-        then fromIntegral totalScore / fromIntegral totalGames
-        else 0
-
-generateInsights :: Int -> Double -> String
-generateInsights totalGames averageScore =
-    "You scored an average of " <> printf "%.2f" averageScore <>
-    " points from a total of " <> show totalGames <> " games."
-
-
-
--- Helper function to get the integer value from Score
-scoreValue :: Score -> Int
-scoreValue (Score s) = s
-
-parseScore :: String -> Maybe Score
-parseScore record
-    | "Win" `isInfixOf` record = -- Backticks added here
-        let scoreStr = last (words record)
-         in Score <$> readMaybe scoreStr
-    | otherwise = Nothing
-
-
-readMaybe :: Read a => String -> Maybe a
-readMaybe s = case reads s of
-    [(val, "")] -> Just val
-    _           -> Nothing
-
-
--- ---------------------------------------------- REPORT -------------------------------------------------------------
-
+-- main function to run
 main :: IO ()
-main = getUserChoice >>= processUserInput
+main = getUserChoice >>= processUserInput -- prompt for user input and process it
