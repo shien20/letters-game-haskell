@@ -1,9 +1,14 @@
 -- Define a GameState typeclass
 import System.Random
 import Data.Char (toLower)
-import Data.Foldable (traverse_)
-import System.Console.ANSI
+import Data.List (isInfixOf)
 import System.Directory (doesFileExist)
+import Data.Maybe (mapMaybe)
+import Data.Semigroup (Sum(..))
+import Data.Foldable (traverse_)
+import Text.Printf (printf)
+import System.Console.ANSI
+
 
 class GameStateOps s where
     decrementAttempts :: s -> s             -- Reduce the remaining attempts
