@@ -2,6 +2,7 @@
 {-# HLINT ignore "Use lambda-case" #-}
 module Main where
 
+-- importing third-party library
 import Data.Semigroup (Sum(..))
 import Data.Foldable (traverse_)
 import Text.Printf (printf)
@@ -14,6 +15,7 @@ import System.Console.ANSI
       setSGR )
 import Control.Monad (unless)
 
+-- importing other modules
 import Game ( getValidInput, selectRandomWord, playGame )
 import Type ( GameState(GameState) )
 import History
@@ -57,16 +59,18 @@ processUserInput choice =
         5 -> putStrLn "Thank you for playing! Goodbye."
         _ -> putStrLn "Invalid choice. Please try again." >> getUserChoice >>= processUserInput
 
+
+-- function to begin the game 
 startGame :: IO ()
 startGame = 
-    selectRandomWord >>= \target ->  
-    let initialState = GameState 6 target () in  
-    playGame initialState >>= \result ->      
-    logGameResult "game_records.txt" target result >> 
+    selectRandomWord >>= \target ->  -- call selectRandomWord function to choose random words 
+    let initialState = GameState 6 target () in  -- initiate the game state
+    playGame initialState >>= \result ->   -- process the game state for each attempts
+    logGameResult "game_records.txt" target result >>  -- write the result into text file 
     putStrLn "-----------------------------------------------------------------------" >>  
-    putStrLn "Do you want to play again? \n[1] Yes | [2] Exit to Menu" >> 
-    getValidInput (\n -> n >= 1 && n <= 2) >>= \choice ->   
-    case choice of
+    putStrLn "Do you want to play again? \n[1] Yes | [2] Exit to Menu" >>  -- prompt user if they want to play again
+    getValidInput (\n -> n >= 1 && n <= 2) >>= \choice ->  -- check user's input validity 
+    case choice of  -- process user's input
         1 -> startGame   
         2 -> main        
         _ -> putStrLn "Input Error"  
@@ -75,16 +79,16 @@ startGame =
 -- Function to view history
 viewHistory :: IO ()
 viewHistory =
-    processHistory "game_records.txt" main >>= \records ->
+    processHistory "game_records.txt" main >>= \records -> -- load text file and handle it if text file does not exist
         unless (null records) $
-            setSGR [SetConsoleIntensity BoldIntensity] >>
+            setSGR [SetConsoleIntensity BoldIntensity] >> -- setting bold text
             putStrLn "\nYOUR GAME HISTORY:" >>
             setSGR [Reset] >>
-            mapM_ (putStrLn . formatRecord) (zip [1 ..] records) >>
+            mapM_ (putStrLn . formatRecord) (zip [1 ..] records) >> -- print the record with numbering 
             putStrLn "\nWhich operation would you like to perform\n[1] Delete Record [2] Exit to Menu\nEnter your choice: " >>
-            getValidInput (\n -> n >= 1 && n <= 2) >>= \input ->
+            getValidInput (\n -> n >= 1 && n <= 2) >>= \input -> -- check user's input validity 
                 putStrLn "-----------------------------------------------------------------------\n" >>
-                case input of
+                case input of -- process user's input
                     1 -> deleteRecords
                     2 -> main
                     _ -> putStrLn "Input Error"
@@ -138,11 +142,11 @@ viewInstructions =
 
     putStrLn "\nReady to Play?" >>
     putStrLn "Choose the number of the option you want from the menu to begin playing." >>
-    putStrLn "[1] Start Game [2] Exit to Menu" >>
+    putStrLn "[1] Start Game [2] Exit to Menu" >> 
     putStrLn "Enter your choice: " >>
 
     getValidInput (\n -> n >= 1 && n <= 2) >>= \choice -> -- check for user's input validity 
-    case choice of
+    case choice of -- process user's input 
         1 -> startGame
         2 -> main
         _ -> putStrLn "Input Error"
@@ -150,7 +154,9 @@ viewInstructions =
 -- Function to generate report
 generateReport :: IO ()
 generateReport =
-    readHistory "game_records.txt" >>= \records -> 
+    readHistory "game_records.txt" >>= \records -> -- load text file
+
+    -- calculate all the requried statistics 
     let totalGames = calculateTotalGames records
         wins = calculateWins records
         losses = calculateLosses totalGames wins
@@ -163,6 +169,7 @@ generateReport =
         subHeaderStyle = setSGR [SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid Cyan]
         resetStyle = setSGR [Reset]
 
+    -- print the result of all the statistics 
     in headerStyle >>
        putStrLn "\nYOUR GAME REPORT: " >> 
        resetStyle >>  
@@ -186,8 +193,8 @@ generateReport =
 
 
        putStrLn "\n[1] Exit to Menu" >>
-       getValidInput (== 1) >>= \choice -> 
-       case choice of
+       getValidInput (== 1) >>= \choice -> -- get and validate user's input 
+       case choice of -- process user's input 
            1 -> main 
            _ -> putStrLn "Input Error"
 
