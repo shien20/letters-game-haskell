@@ -1,5 +1,6 @@
 module Game where 
 
+-- import third-party library
 import System.Random ( randomRIO )
 import Data.Char (toLower)
 import Data.Foldable (traverse_)
@@ -10,7 +11,7 @@ import System.Console.ANSI
       Color(Red, Green, Yellow),
       setSGR )
 
-
+-- import other modules 
 import Type
     ( GameStateOps(getRemainingAttempts, getTargetWord,
                    decrementAttempts),
@@ -31,39 +32,46 @@ dictionary = ["about", "alarm","brain", "black","chain", "chess",
 selectRandomWord :: IO String
 selectRandomWord = randomRIO (0, length dictionary - 1) >>= \index -> return (dictionary !! index)
 
+-- function to handle game logic 
 playGame :: (GameStateOps s) => s -> IO GameResult
 playGame state
+    -- display error message and end the game if used up all attempts
     | getRemainingAttempts state == 0 = 
         putStrLn ("You failed to guess the word. The correct word was: " <> getTargetWord state) >> return Lose
 
+    -- show feedback message and decrement attempt by 1 if still got remaining attempts
     | otherwise = 
         putStrLn ("Enter your 5 letters guess (" <> show (getRemainingAttempts state) <> " attempts left):") >>
         (fmap (map toLower) getLine >>= \guess -> handleGuess state guess)
 
-
+-- Function to check user's answer with the choosen random word
 handleGuess :: (GameStateOps s) => s -> String -> IO GameResult
 handleGuess state guess
+    -- Handle error when user did not enter all letters
     | not (isValidGuess guess) = 
         setSGR [SetColor Foreground Vivid Red] *> -- Change color to red
         putStrLn "!!! Invalid input. Please enter a valid 5-letter word." *>
         setSGR [Reset] *> -- Reset color
         playGame state
 
+    -- If user guess the correct word, then Win and record the score
     | guess == getTargetWord state = do
         let score = calculateScore state
         putStrLn $ "Congratulations! Your score is: " <> show score
         return $ Win score
 
+    -- If user did not guess the correct word, then lose 
     | otherwise = 
         let feedback = checkAnswer guess (getTargetWord state)
         in putStrLn "Feedback on your guess:" *>
            traverse_ showFeedback feedback *>
            playGame (decrementAttempts state)
 
-
+-- helper function for handleGuess to make sure input is all letters 
 isValidGuess :: String -> Bool
 isValidGuess guess = all (`elem` ['a'..'z']) guess && length guess == 5
 
+-- helper function for handleGuess to calculate the score based on the remaining attempts
 calculateScore :: (GameStateOps s) => s -> Score
 calculateScore state = Score $ getRemainingAttempts state
 

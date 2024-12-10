@@ -1,7 +1,9 @@
 module History where
 
+-- import third-party library
 import System.Directory (doesFileExist)
 
+-- import other modules 
 import Type ( GameResult(..), Score(Score) )
 
 -- Read History function to read game records
