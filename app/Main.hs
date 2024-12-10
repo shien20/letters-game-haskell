@@ -8,7 +8,7 @@ import System.Console.ANSI
       ConsoleIntensity(BoldIntensity),
       ConsoleLayer(Foreground),
       ColorIntensity(Vivid),
-      Color(Red, Green, Yellow),
+      Color(Red, Green, Yellow, Blue, Cyan),
       setSGR )
 import Control.Monad (unless)
 
@@ -144,27 +144,48 @@ viewInstructions =
 
 -- Function to generate report
 generateReport :: IO ()
-generateReport =
-    readHistory "game_records.txt" >>= \records ->
-        let totalGames = calculateTotalGames records -- calculate total number of games user played
-            wins = calculateWins records -- calculate total number of wins
-            losses = calculateLosses totalGames wins -- totalGames - totalWins: calculate total number of lose
-            bestScore = (scoreValue <$> calculateBestScore records)  -- find the highest Win score
-            totalScore = calculateTotalScore records -- calculate total score
-            averageScore = calculateAverageScore (getSum totalScore) totalGames -- totalScore / totalGames: calculate the averageScore per game
-            insights = generateInsights totalGames averageScore -- display the information calculated
+generateReport = do
+    records <- readHistory "game_records.txt"
 
-        -- Format and display the calculations 
-        in putStrLn "\nYOUR GAME REPORT: \n-----------------------------------------------------------------------"
-           >> putStrLn ("Total Games: " <> show totalGames)
-           >> putStrLn ("Wins: " <> show wins <> ", Losses: " <> show losses)
-           >> putStrLn ("Best Score: " <> maybe "No scores yet." show bestScore)
-           >> printf "Average Score: %.2f\n" averageScore  -- printf to display in 2 decimal places 
-           >> putStrLn insights
-           >> putStrLn "-----------------------------------------------------------------------"
-           >> putStrLn "[1] Exit to Menu" >> getValidInput (\n -> n >= 1 && n <= 1) >>= \choice ->
-            case choice of 
-                1 -> main 
+    -- Calculate stats
+    let totalGames = calculateTotalGames records
+        wins = calculateWins records
+        losses = calculateLosses totalGames wins
+        bestScore = (scoreValue <$> calculateBestScore records)
+        totalScore = calculateTotalScore records
+        averageScore = calculateAverageScore (getSum totalScore) totalGames
+        insights = generateInsights totalGames averageScore
+
+    -- Define styled sections
+    let sectionLine = "-----------------------------------------------------------------------"
+        headerStyle = setSGR [SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid Blue]
+        subHeaderStyle = setSGR [SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid Cyan]
+        resetStyle = setSGR [Reset]
+
+    -- Display the formatted report
+    headerStyle
+    putStrLn "\nYOUR GAME REPORT: "
+    resetStyle
+    putStrLn sectionLine
+    subHeaderStyle
+    putStrLn $ "Total Games:    " <> show totalGames
+    putStrLn $ "Wins:           " <> show wins
+    putStrLn $ "Losses:         " <> show losses
+    putStrLn $ "Best Score:     " <> maybe "No scores yet." show bestScore
+    printf "Average Score:  %.2f\n" averageScore
+    resetStyle
+    putStrLn sectionLine
+    putStrLn "\nInsights:"
+    headerStyle
+    putStrLn insights
+    resetStyle
+    putStrLn sectionLine
+
+    -- Menu option
+    putStrLn "\n[1] Exit to Menu"
+    getValidInput (\n -> n == 1) >>= \choice -> 
+        case choice of
+            1 -> main
 
 -- main function to run
 main :: IO ()
