@@ -1,3 +1,4 @@
+{-# LANGUAGE InstanceSigs #-}
 module Type where 
 
 -- custom data type to represent the state of the game.
@@ -32,29 +33,36 @@ class GameStateOps s where
 instance GameStateOps (GameState a) where
 
     -- Decreases the remaining attempts by 1
+    decrementAttempts :: GameState a -> GameState a
     decrementAttempts (GameState attempts target val) =
         GameState (attempts - 1) target val
 
     -- Sets the target word in the GameState.
+    setTargetWord :: String -> GameState a -> GameState a
     setTargetWord word (GameState attempts _ val) =
         GameState attempts word val
 
     -- Retrieves the number of remaining attempts from the GameState.
+    getRemainingAttempts :: GameState a -> Int
     getRemainingAttempts (GameState attempts _ _) = attempts
 
     -- Retrieves the target word from the GameState.
+    getTargetWord :: GameState a -> String
     getTargetWord (GameState _ target _) = target
 
 
 -- Implement Semigroup on Score
 -- adds 2 scores together using <>
 instance Semigroup Score where
+    (<>) :: Score -> Score -> Score
     (Score a) <> (Score b) = Score (a + b)
 
 -- Implement Monoid on Score
 -- Define mempty and mappend to combine score
 instance Monoid Score where
+    mempty :: Score
     mempty = Score 0
+    mappend :: Score -> Score -> Score
     mappend = (<>)
 
 
@@ -62,20 +70,25 @@ instance Monoid Score where
 
 -- mapping a function over the `stateValue` part of the GameState, leaving other fields unchanged.
 instance Functor GameState where
+    fmap :: (a -> b) -> GameState a -> GameState b
     fmap f (GameState attempts target val) = GameState attempts target (f val)
 
 -- pure for creating a GameState with a default value
 -- <*> for applying functions inside GameState.
 instance Applicative GameState where
+    pure :: a -> GameState a
     pure x = GameState 6 "" x
+    (<*>) :: GameState (a -> b) -> GameState a -> GameState b
     (GameState _ _ f) <*> (GameState attempts target val) =
         GameState attempts target (f val)
 
 -- to sequence actions that manipulate game state
 instance Monad GameState where
+    return :: a -> GameState a
     return = pure
 
     -- allows chaining operation to produce new GameState value
+    (>>=) :: GameState a -> (a -> GameState b) -> GameState b
     (GameState attempts target val) >>= f =
         let (GameState newAttempts newTarget newVal) = f val
          in GameState (min attempts newAttempts) (if null target then newTarget else target) newVal
