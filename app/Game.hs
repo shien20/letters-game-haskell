@@ -10,6 +10,7 @@ import System.Console.ANSI
       Color(Red, Green, Yellow),
       setSGR )
 
+
 import Type
     ( GameStateOps(getRemainingAttempts, getTargetWord,
                    decrementAttempts),
@@ -32,31 +33,32 @@ selectRandomWord = randomRIO (0, length dictionary - 1) >>= \index -> return (di
 
 playGame :: (GameStateOps s) => s -> IO GameResult
 playGame state
-    | getRemainingAttempts state == 0 = do
-        putStrLn $ "You failed to guess the word. The correct word was: " <> getTargetWord state
-        return Lose
-    | otherwise = do
-        putStrLn $ "Enter your 5 letters guess (" <> show (getRemainingAttempts state) <> " attempts left):"
-        guess <- fmap (map toLower) getLine
-        handleGuess state guess
+    | getRemainingAttempts state == 0 = 
+        putStrLn ("You failed to guess the word. The correct word was: " <> getTargetWord state) >> return Lose
+
+    | otherwise = 
+        putStrLn ("Enter your 5 letters guess (" <> show (getRemainingAttempts state) <> " attempts left):") >>
+        (fmap (map toLower) getLine >>= \guess -> handleGuess state guess)
 
 
 handleGuess :: (GameStateOps s) => s -> String -> IO GameResult
 handleGuess state guess
-    | not (isValidGuess guess) = do
-        setSGR [SetColor Foreground Vivid Red]
-        putStrLn "!!! Invalid input. Please enter a valid 5-letter word."
-        setSGR [Reset]
+    | not (isValidGuess guess) = 
+        setSGR [SetColor Foreground Vivid Red] *> -- Change color to red
+        putStrLn "!!! Invalid input. Please enter a valid 5-letter word." *>
+        setSGR [Reset] *> -- Reset color
         playGame state
+
     | guess == getTargetWord state = do
         let score = calculateScore state
         putStrLn $ "Congratulations! Your score is: " <> show score
         return $ Win score
-    | otherwise = do
+
+    | otherwise = 
         let feedback = checkAnswer guess (getTargetWord state)
-        putStrLn "Feedback on your guess:"
-        traverse_ showFeedback feedback
-        playGame (decrementAttempts state)
+        in putStrLn "Feedback on your guess:" *>
+           traverse_ showFeedback feedback *>
+           playGame (decrementAttempts state)
 
 
 isValidGuess :: String -> Bool
@@ -75,11 +77,10 @@ getValidInput isValid =
                 | otherwise -> retry -- else prompt user to enter again
             _ -> retry
   where
-    retry = do
-        setSGR [SetColor Foreground Vivid Red] -- Set text color to red
-        putStrLn "!!! Invalid input. Please try again."
-        setSGR [Reset] -- Reset to default color
-        putStrLn "" -- Add a newline to ensure the reset takes effect visually
+    retry = 
+        setSGR [SetColor Foreground Vivid Red] >> -- Set text color to red
+        putStrLn "!!! Invalid input. Please try again." >>
+        setSGR [Reset] >> -- Reset to default color 
         getValidInput isValid
 
 

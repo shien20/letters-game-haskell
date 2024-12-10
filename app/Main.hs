@@ -58,18 +58,18 @@ processUserInput choice =
         _ -> putStrLn "Invalid choice. Please try again." >> getUserChoice >>= processUserInput
 
 startGame :: IO ()
-startGame = do
-    target <- selectRandomWord
-    let initialState = GameState 6 target ()
-    result <- playGame initialState
-    logGameResult "game_records.txt" target result
-    putStrLn "-----------------------------------------------------------------------"
-    putStrLn "Do you want to play again? \n[1] Yes | [2] Exit to Menu"
-    choice <- getValidInput (\n -> n >= 1 && n <= 2)
+startGame = 
+    selectRandomWord >>= \target ->  
+    let initialState = GameState 6 target () in  
+    playGame initialState >>= \result ->      
+    logGameResult "game_records.txt" target result >> 
+    putStrLn "-----------------------------------------------------------------------" >>  
+    putStrLn "Do you want to play again? \n[1] Yes | [2] Exit to Menu" >> 
+    getValidInput (\n -> n >= 1 && n <= 2) >>= \choice ->   
     case choice of
-        1 -> startGame
-        2 -> main
-        _ -> putStrLn "Input Error"
+        1 -> startGame   
+        2 -> main        
+        _ -> putStrLn "Input Error"  
 
 
 -- Function to view history
@@ -149,10 +149,8 @@ viewInstructions =
 
 -- Function to generate report
 generateReport :: IO ()
-generateReport = do
-    records <- readHistory "game_records.txt"
-
-    -- Calculate stats
+generateReport =
+    readHistory "game_records.txt" >>= \records -> 
     let totalGames = calculateTotalGames records
         wins = calculateWins records
         losses = calculateLosses totalGames wins
@@ -160,38 +158,39 @@ generateReport = do
         totalScore = calculateTotalScore records
         averageScore = calculateAverageScore (getSum totalScore) totalGames
         insights = generateInsights totalGames averageScore
-
-    -- Define styled sections
-    let sectionLine = "-----------------------------------------------------------------------"
+        sectionLine = "-----------------------------------------------------------------------"
         headerStyle = setSGR [SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid Blue]
         subHeaderStyle = setSGR [SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid Cyan]
         resetStyle = setSGR [Reset]
 
-    -- Display the formatted report
-    headerStyle
-    putStrLn "\nYOUR GAME REPORT: "
-    resetStyle
-    putStrLn sectionLine
-    subHeaderStyle
-    putStrLn $ "Total Games:    " <> show totalGames
-    putStrLn $ "Wins:           " <> show wins
-    putStrLn $ "Losses:         " <> show losses
-    putStrLn $ "Best Score:     " <> maybe "No scores yet." show bestScore
-    printf "Average Score:  %.2f\n" averageScore
-    resetStyle
-    putStrLn sectionLine
-    putStrLn "\nInsights:"
-    headerStyle
-    putStrLn insights
-    resetStyle
-    putStrLn sectionLine
+    in headerStyle >>
+       putStrLn "\nYOUR GAME REPORT: " >> 
+       resetStyle >>  
+       putStrLn sectionLine >> 
+       subHeaderStyle >>  
 
-    -- Menu option
-    putStrLn "\n[1] Exit to Menu"
-    getValidInput (== 1) >>= \choice ->
-        case choice of
-            1 -> main
-            _ -> putStrLn "Input Error"
+       putStrLn ("Total Games:    " <> show totalGames) >> 
+       putStrLn ("Wins:           " <> show wins) >>  
+       putStrLn ("Losses:         " <> show losses) >>  
+       putStrLn ("Best Score:     " <> maybe "No scores yet." show bestScore) >>  
+       printf "Average Score:  %.2f\n" averageScore >>
+
+       resetStyle >>  
+       putStrLn sectionLine >>  
+
+       putStrLn "\nInsights:" >>  
+       headerStyle >>  
+       putStrLn insights >> 
+       resetStyle >> 
+       putStrLn sectionLine >>  
+
+
+       putStrLn "\n[1] Exit to Menu" >>
+       getValidInput (== 1) >>= \choice -> 
+       case choice of
+           1 -> main 
+           _ -> putStrLn "Input Error"
+
 
 
 -- main function to run
