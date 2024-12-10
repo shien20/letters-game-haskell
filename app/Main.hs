@@ -71,7 +71,7 @@ deleteRecords :: IO ()
 deleteRecords =
     processHistory "game_records.txt" main >>= \records -> -- check if the file is empty
         unless (null records) ( -- if the file is not empty then perform the following
-            setSGR [SetConsoleIntensity BoldIntensity] >>
+            setSGR [SetConsoleIntensity BoldIntensity] >> 
             putStrLn "DELETING YOUR GAME HISTORY\n" >>
             setSGR [Reset] >>
             traverse_ (putStrLn . formatRecord) (zip [1 ..] records) >> -- format and display the records details

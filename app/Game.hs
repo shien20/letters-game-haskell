@@ -22,8 +22,9 @@ playGame state
         return Lose
     | otherwise = do
         putStrLn $ "Enter your guess (" <> show (getRemainingAttempts state) <> " attempts left):"
-        guess <- getLine
-        handleGuess state (map toLower guess)
+        guess <- fmap (map toLower) getLine
+        handleGuess state guess
+
 
 handleGuess :: (GameStateOps s) => s -> String -> IO GameResult
 handleGuess state guess
@@ -38,7 +39,8 @@ handleGuess state guess
         let feedback = checkAnswer guess (getTargetWord state)
         putStrLn "Feedback on your guess:"
         traverse_ showFeedback feedback
-        playGame $ decrementAttempts state
+        playGame (decrementAttempts state)
+
 
 isValidGuess :: String -> Bool
 isValidGuess guess = all (`elem` ['a'..'z']) guess && length guess == 5
