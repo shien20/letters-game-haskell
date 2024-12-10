@@ -21,7 +21,7 @@ playGame state
         putStrLn $ "You failed to guess the word. The correct word was: " <> getTargetWord state
         return Lose
     | otherwise = do
-        putStrLn $ "Enter your guess (" <> show (getRemainingAttempts state) <> " attempts left):"
+        putStrLn $ "Enter your 5 letters guess (" <> show (getRemainingAttempts state) <> " attempts left):"
         guess <- fmap (map toLower) getLine
         handleGuess state guess
 
