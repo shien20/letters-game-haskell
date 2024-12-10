@@ -1,6 +1,6 @@
 module Game where 
 
-import System.Random
+import System.Random ( randomRIO )
 import Data.Char (toLower)
 import Data.Foldable (traverse_)
 import System.Console.ANSI
@@ -11,6 +11,11 @@ import System.Console.ANSI
       setSGR )
 
 import Type
+    ( GameStateOps(getRemainingAttempts, getTargetWord,
+                   decrementAttempts),
+      GameResult(..),
+      Score(..),
+      Feedback(..) )
 
 -- Store all the words that may came out in the game 
 dictionary :: [String]
