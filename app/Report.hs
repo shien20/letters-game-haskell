@@ -1,11 +1,11 @@
 module Report where
 
 import Data.Semigroup (Sum(..))
-import Text.Printf
+import Text.Printf ( printf )
 import Data.List (isInfixOf)
 import Data.Maybe (mapMaybe)
 
-import Type
+import Type ( Score(..) )
 
 -- calculate the total number of games user player
 calculateTotalGames :: [String] -> Int

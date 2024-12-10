@@ -4,6 +4,11 @@ import System.Random
 import Data.Char (toLower)
 import Data.Foldable (traverse_)
 import System.Console.ANSI
+    ( SGR(Reset, SetColor),
+      ConsoleLayer(Foreground),
+      ColorIntensity(Vivid),
+      Color(Red, Green, Yellow),
+      setSGR )
 
 import Type
 

@@ -4,12 +4,31 @@ import Data.Semigroup (Sum(..))
 import Data.Foldable (traverse_)
 import Text.Printf (printf)
 import System.Console.ANSI
+    ( SGR(Reset, SetConsoleIntensity, SetColor),
+      ConsoleIntensity(BoldIntensity),
+      ConsoleLayer(Foreground),
+      ColorIntensity(Vivid),
+      Color(Red, Green, Yellow),
+      setSGR )
 import Control.Monad (unless)
 
-import Game 
-import Type 
-import History 
+import Game ( getValidInput, selectRandomWord, playGame ) 
+import Type ( GameState(GameState) ) 
+import History
+    ( logGameResult,
+      processHistory,
+      formatRecord,
+      validateDeletion,
+      readHistory ) 
 import Report
+    ( calculateTotalGames,
+      calculateWins,
+      calculateLosses,
+      scoreValue,
+      calculateBestScore,
+      calculateTotalScore,
+      calculateAverageScore,
+      generateInsights )
 
 
 -- Function to prompt for user input at the start of the game

@@ -2,7 +2,7 @@ module History where
 
 import System.Directory (doesFileExist)
 
-import Type
+import Type ( GameResult(..), Score(Score) )
 
 -- Read History function to read game records
 readHistory :: FilePath -> IO [String]
