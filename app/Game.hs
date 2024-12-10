@@ -29,7 +29,9 @@ playGame state
 handleGuess :: (GameStateOps s) => s -> String -> IO GameResult
 handleGuess state guess
     | not (isValidGuess guess) = do
-        putStrLn "Invalid input. Please enter a valid 5-letter word."
+        setSGR [SetColor Foreground Vivid Red]
+        putStrLn "!!! Invalid input. Please enter a valid 5-letter word."
+        setSGR [Reset]
         playGame state
     | guess == getTargetWord state = do
         let score = calculateScore state
@@ -58,7 +60,12 @@ getValidInput isValid =
                 | otherwise -> retry -- else prompt user to enter again
             _ -> retry
   where
-    retry = putStrLn "Invalid input. Please try again." >> getValidInput isValid
+    retry = do
+        setSGR [SetColor Foreground Vivid Red] -- Set text color to red
+        putStrLn "!!! Invalid input. Please try again."
+        setSGR [Reset] -- Reset to default color
+        putStr "" -- Add a newline to ensure the reset takes effect visually
+        getValidInput isValid
 
 
 -- Function to label which character is correct, misplaced, or incorrect
