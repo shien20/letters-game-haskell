@@ -64,7 +64,7 @@ getValidInput isValid =
         setSGR [SetColor Foreground Vivid Red] -- Set text color to red
         putStrLn "!!! Invalid input. Please try again."
         setSGR [Reset] -- Reset to default color
-        putStr "" -- Add a newline to ensure the reset takes effect visually
+        putStrLn "" -- Add a newline to ensure the reset takes effect visually
         getValidInput isValid
 
 

@@ -32,7 +32,7 @@ processUserInput choice =
         1 -> startGame
         2 -> viewHistory
         3 -> viewInstructions
-        4 -> generateReport >> main
+        4 -> generateReport
         5 -> putStrLn "Thank you for playing! Goodbye."
         _ -> putStrLn "Invalid choice. Please try again." >> getUserChoice >>= processUserInput
 
@@ -143,6 +143,9 @@ generateReport =
            >> printf "Average Score: %.2f\n" averageScore  -- printf to display in 2 decimal places 
            >> putStrLn insights
            >> putStrLn "-----------------------------------------------------------------------"
+           >> putStrLn "[1] Exit to Menu" >> getValidInput (\n -> n >= 1 && n <= 1) >>= \choice ->
+            case choice of 
+                1 -> main 
 
 -- main function to run
 main :: IO ()
