@@ -43,13 +43,11 @@ startGame = do
     result <- playGame initialState
     logGameResult "game_records.txt" target result
     putStrLn "-----------------------------------------------------------------------"
-    askReplay
-
-askReplay :: IO ()
-askReplay = do
-    putStrLn "Do you want to play again? \n[1] Yes | [any key] Exit to Menu"
-    replay <- getLine
-    if replay == "1" then startGame else main 
+    putStrLn "Do you want to play again? \n[1] Yes | [2] Exit to Menu"
+    choice <- getValidInput (\n -> n >= 1 && n <= 2)
+    case choice of 
+        1 -> startGame 
+        2 -> main 
 
 
 -- Function to view history

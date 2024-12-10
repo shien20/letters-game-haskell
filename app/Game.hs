@@ -25,6 +25,12 @@ playGame state
         guess <- getLine
         handleGuess state (map toLower guess)
 
+askReplay :: IO Int
+askReplay = do
+    
+    replay <- getLine
+    if replay == "1" then return 1 else replay == _ return 0 
+
 handleGuess :: (GameStateOps s) => s -> String -> IO GameResult
 handleGuess state guess
     | not (isValidGuess guess) = do
