@@ -9,7 +9,12 @@ import Type
 
 -- Store all the words that may came out in the game 
 dictionary :: [String]
-dictionary = ["hello", "earth", "paint", "about", "brain", "chain", "pause", "trade", "burst"]
+dictionary = ["about", "alarm","brain", "black","chain", "chess", 
+              "drunk", "dream", "earth", "eagle", "false", "fairy",
+              "grass", "green", "happy", "heart","input", "index",
+              "jewel", "juice", "knife", "lemmon", "light", "march", "metal",
+              "order", "offer", "paint", "queue", "royal", "rural", "seven", "sharp", "today", "touch",
+              "under", "upper", "wrong", "write", "young", "voice", "white"]
 
 -- Function to randomly pick a word
 selectRandomWord :: IO String
