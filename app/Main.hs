@@ -1,4 +1,6 @@
-module Main where 
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use lambda-case" #-}
+module Main where
 
 import Data.Semigroup (Sum(..))
 import Data.Foldable (traverse_)
@@ -12,14 +14,14 @@ import System.Console.ANSI
       setSGR )
 import Control.Monad (unless)
 
-import Game ( getValidInput, selectRandomWord, playGame ) 
-import Type ( GameState(GameState) ) 
+import Game ( getValidInput, selectRandomWord, playGame )
+import Type ( GameState(GameState) )
 import History
     ( logGameResult,
       processHistory,
       formatRecord,
       validateDeletion,
-      readHistory ) 
+      readHistory )
 import Report
     ( calculateTotalGames,
       calculateWins,
@@ -64,14 +66,15 @@ startGame = do
     putStrLn "-----------------------------------------------------------------------"
     putStrLn "Do you want to play again? \n[1] Yes | [2] Exit to Menu"
     choice <- getValidInput (\n -> n >= 1 && n <= 2)
-    case choice of 
-        1 -> startGame 
-        2 -> main 
+    case choice of
+        1 -> startGame
+        2 -> main
+        _ -> putStrLn "Input Error"
 
 
 -- Function to view history
 viewHistory :: IO ()
-viewHistory = 
+viewHistory =
     processHistory "game_records.txt" main >>= \records ->
         unless (null records) $
             setSGR [SetConsoleIntensity BoldIntensity] >>
@@ -84,13 +87,14 @@ viewHistory =
                 case input of
                     1 -> deleteRecords
                     2 -> main
+                    _ -> putStrLn "Input Error"
 
 -- Function to delete records
 deleteRecords :: IO ()
 deleteRecords =
     processHistory "game_records.txt" main >>= \records -> -- check if the file is empty
         unless (null records) ( -- if the file is not empty then perform the following
-            setSGR [SetConsoleIntensity BoldIntensity] >> 
+            setSGR [SetConsoleIntensity BoldIntensity] >>
             putStrLn "DELETING YOUR GAME HISTORY\n" >>
             setSGR [Reset] >>
             traverse_ (putStrLn . formatRecord) (zip [1 ..] records) >> -- format and display the records details
@@ -110,37 +114,38 @@ viewInstructions =
     setSGR [SetConsoleIntensity BoldIntensity] >> -- set to bold text 
     putStrLn "\nHOW TO PLAY THE LETTERS GAME" >>
     setSGR [Reset] >>
-    
+
     putStrLn "1. You will be given a random 5-letter word to guess." >>
     putStrLn "2. You have 6 attempts to guess the word correctly." >>
     putStrLn "3. After each guess, you'll receive feedback:" >>
-    
+
     setSGR [SetColor Foreground Vivid Green] >> -- set to green colour
     putStrLn "  - Correct: The letter is in the correct position." >>
-    
+
     setSGR [SetColor Foreground Vivid Yellow] >> -- set to yellow colour
     putStrLn "  - Misplaced: The letter is in the word but in the wrong position." >>
-    
+
     setSGR [SetColor Foreground Vivid Red] >> -- set to red colour
     putStrLn "  - Incorrect: The letter does not exist in the word." >>
     setSGR [Reset] >>
-    
+
     putStrLn "4. Your score is based on how quickly you guess the word:" >>
     putStrLn "  - 6 points for guessing correctly on the first attempt." >>
     putStrLn "  - 5 points for the second attempt" >>
     putStrLn "  - 4 points for the third, and so on." >>
     putStrLn "  - If you guess the word on the 6th attempt, you score 1 point." >>
     putStrLn "  - If you fail to guess the word within 6 attempts, you will earn 0 points." >>
-    
+
     putStrLn "\nReady to Play?" >>
     putStrLn "Choose the number of the option you want from the menu to begin playing." >>
     putStrLn "[1] Start Game [2] Exit to Menu" >>
     putStrLn "Enter your choice: " >>
-    
+
     getValidInput (\n -> n >= 1 && n <= 2) >>= \choice -> -- check for user's input validity 
     case choice of
         1 -> startGame
         2 -> main
+        _ -> putStrLn "Input Error"
 
 -- Function to generate report
 generateReport :: IO ()
@@ -183,9 +188,11 @@ generateReport = do
 
     -- Menu option
     putStrLn "\n[1] Exit to Menu"
-    getValidInput (\n -> n == 1) >>= \choice -> 
+    getValidInput (== 1) >>= \choice ->
         case choice of
             1 -> main
+            _ -> putStrLn "Input Error"
+
 
 -- main function to run
 main :: IO ()

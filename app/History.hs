@@ -27,7 +27,7 @@ processHistory :: FilePath -> IO () -> IO [String]
 processHistory filePath onEmpty = 
     readHistory filePath >>= \records -> -- Read the contents of file
         if null records
-            then putStrLn "No game records found." >> onEmpty >> return [] -- If file empty, display a message and return to main menu
+            then putStrLn "No game records found.\nStart playing to create game records" >> onEmpty >> return [] -- If file empty, display a message and return to main menu
             else return records -- If not empty, return the records
 
 
