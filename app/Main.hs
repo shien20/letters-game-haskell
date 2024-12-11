@@ -105,10 +105,17 @@ deleteRecords =
             putStrLn "Enter the record number to delete or 0 to cancel:" >> -- get the index number user wants to delete
             getLine >>= \input ->
             case validateDeletion input records of -- check user input index exist in the file
-                Left errMsg -> putStrLn errMsg >> viewHistory -- if does not exist, display error message and prompt for [1] Delete Records [2] Exit to menu
+                Left errMsg -> 
+                    setSGR [SetColor Foreground Vivid Red] >> 
+                    putStrLn errMsg >> 
+                    setSGR [Reset] >>
+                    viewHistory -- if does not exist, display error message and prompt for [1] Delete Records [2] Exit to menu
                 Right updatedRecords -> -- if exist, delete the line and display the updated record
                     writeFile "game_records.txt" (unlines updatedRecords) >>
-                    putStrLn "Record deleted successfully.\n-----------------------------------------------------------------------\nYour record has been UPDATED" >>
+                    setSGR [SetColor Foreground Vivid Green] >> 
+                    putStrLn "Record deleted successfully." >>
+                    setSGR [Reset] >>
+                    putStrLn "-----------------------------------------------------------------------\nYour record has been UPDATED" >>
                     viewHistory
         )
 
