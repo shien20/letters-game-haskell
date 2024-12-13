@@ -55,7 +55,7 @@ scoreValue (Score s) = s
 parseScore :: String -> Maybe Score
 parseScore record
     | "Win" `isInfixOf` record = 
-        let scoreStr = last (words record) -- Extracts the last word which is score
+        let scoreStr = last (words record) -- Extracts the last element which is score
          in Score <$> readMaybe scoreStr -- Converts the score to an integer if valid.
     | otherwise = Nothing
 

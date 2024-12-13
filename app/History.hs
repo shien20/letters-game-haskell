@@ -48,3 +48,4 @@ logGameResult filePath word result =
             Win (Score s) -> "Word: " ++ word ++ " | Result: Win | Score: " ++ show s -- if result is "Win", extract and display the Score
             Lose -> "Word: " ++ word ++ " | Result: Lose | Score: 0" -- if result is "Lose", print Score: 0
     in appendFile filePath (record ++ "\n") -- add a newline at the end
+
