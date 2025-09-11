@@ -45,7 +45,7 @@ The player must guess a hidden word within a limited number of attempts, with fe
    - Click the green **Code** button on GitHub → *Download ZIP*  
    - Or run:
      ```bash
-     git clone https://github.com/yourusername/letters-game-haskell.git
+     git clone https://github.com/shien20/letters-game-haskell.git
      ```
 
 2. **Open the project folder**
