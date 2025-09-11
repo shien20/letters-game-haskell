@@ -34,7 +34,36 @@ The player must guess a hidden word within a limited number of attempts, with fe
 ---
 
 ## ⚙️ Installation & Running
-1. Clone the repository:
+
+### Prerequisites
+- Install [Haskell Platform](https://www.haskell.org/platform/) (this includes GHC and Cabal).  
+
+---
+
+### Steps
+1. **Download or clone the repository**
+   - Click the green **Code** button on GitHub → *Download ZIP*  
+   - Or run:
+     ```bash
+     git clone https://github.com/yourusername/letters-game-haskell.git
+     ```
+
+2. **Open the project folder**
+   - Extract the ZIP (if downloaded).  
+   - Open the folder named `letters-game-haskell`.  
+
+3. **Open Command Prompt in the folder**
+   - Click on the folder path bar at the top.  
+   - Type `cmd` and press **Enter**.  
+   - A Command Prompt window will open in this folder location.  
+
+4. **Build the project**
    ```bash
-   git clone https://github.com/shien20/letters-game-haskell.git
-   cd letters-game
+   cabal build
+
+5. **Run the game**
+   ```bash
+   cabal run
+
+6. **Enjoy!**
+   🎉 The game will start, and you can play directly in the Command Prompt window.
